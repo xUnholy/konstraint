@@ -8,11 +8,18 @@ import (
 	"log"
 	"os"
 	"strings"
+	"path/filepath"
 
 	"github.com/open-policy-agent/frameworks/constraint/pkg/apis/templates/v1beta1"
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/spf13/cobra"
 	"github.com/xUnholy/konstraint/internal/template"
+	r "github.com/xUnholy/konstraint/internal/rego"
+)
+
+var (
+	policyFilePath = "policy"
+	libFilePath = "libs"
+	outputType = "json"
 )
 
 func TemplateCli() *cobra.Command {
@@ -21,70 +28,126 @@ func TemplateCli() *cobra.Command {
 		Short: "",
 		Run:   templateCmd,
 	}
+	templateCmd.Flags().StringVarP(&policyFilePath, "policy", "p", policyFilePath, "Path to the Rego policy files directory. For the test command, specifying a specific .rego file is allowed. (default \"policy\")")
+	templateCmd.Flags().StringVarP(&libFilePath, "libs", "l", libFilePath, "Path to the Rego library files directory. For the test command, specifying a specific .rego file is allowed.")
+	templateCmd.Flags().StringVarP(&outputType, "output", "o", outputType, "Output format. One of: json|yaml (default \"json\")")
 	return templateCmd
 }
 
 func templateCmd(cmd *cobra.Command, args []string) {
-	for a := range args {
-		path := args[a]
-		if Exists(path) {
-			rego, err := GetFileContent(path)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			name, libs, err := ParseRego(rego)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			WriteFileToYaml(path, template.GenerateConstraintTemplate(name, libs, rego))
+	// Determine if Path or File for Policies
+	policyFiles := []string{policyFilePath}
+	if IsDirectory(policyFilePath) {
+		policyFiles = GetRegoFiles(policyFilePath)
+	}
+	// Determine if Path or File for Libraries
+	libraryFiles := []string{libFilePath}
+	if IsDirectory(libFilePath) {
+		libraryFiles = GetRegoFiles(libFilePath)
+	}
+	// Create map[string]string of library name:rego
+	libsMap := make(map[string]string)
+	for i := range libraryFiles {
+		rego := GetFileContent(libraryFiles[i])
+		name := ParseRegoLibrary(rego)
+		libsMap[name] = rego
+	}
+	// Iterate through Policies Rego
+	for i := range policyFiles {
+		rego := GetFileContent(policyFiles[i])
+		name, libs := ParseRegoPolicy(rego)
+		if strings.Contains(name, "lib.") {
+			continue
 		}
+		fLibs := []string{}
+		for l := range libs {
+			if val, ok := libsMap[libs[l]]; ok {
+				fLibs = append(fLibs, val)
+			}
+		}
+		WriteFile(policyFiles[i], template.ConstraintTemplate(name, fLibs, rego))
 	}
 }
 
-func WriteFileToJson(path string, out v1beta1.ConstraintTemplate) {
-	file, _ := json.MarshalIndent(out, "", "	")
-	_ = ioutil.WriteFile(fmt.Sprintf("%v.json", path), file, 0644)
+func ParseRegoPolicy(rego string) (string, []string) {
+	regoAst := r.Parse(rego)
+	libs := r.GetImports(regoAst)
+	name := r.GetPackageName(regoAst)
+	return name, libs
 }
 
-
-func WriteFileToYaml(path string, out v1beta1.ConstraintTemplate) {
-	file, _ := yaml.Marshal(out)
-	_ = ioutil.WriteFile(fmt.Sprintf("%v.yaml", path), file, 0644)
+func WriteFile(path string, out v1beta1.ConstraintTemplate) {
+	var err error
+	var file []byte
+	output := strings.ToLower(outputType)
+	if (output == "yaml") {
+		file, err = yaml.Marshal(out)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else if (output == "json") {
+		file, err = json.MarshalIndent(out, "", "	")
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		log.Fatalln("Error: Output format is not supported. Must be one of json|yaml")
+	}
+	err = ioutil.WriteFile(fmt.Sprintf("%v.%v", path, output), file, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func GetFileContent(path string) (string, error) {
+func GetFileContent(path string) string {
 	file, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("unable to open path: %v", path)
+		log.Fatalf("unable to open path: %v", path)
 	}
-
 	rego, err := ioutil.ReadAll(file)
 	if err != nil {
-		return "", fmt.Errorf("unable to read file: %v", file)
+		log.Fatalf("unable to read file: %v", file)
 	}
-	return string(rego), nil
+	return string(rego)
 }
 
-func ParseRego(rego string) (string, []string, error) {
-	libs := []string{}
-	regoAst := ast.MustParseModule(rego)
-	if regoAst == nil {
-		return "", []string{}, fmt.Errorf("unable to parse rego file")
+func ParseRegoLibrary(rego string) string {
+	regoAst := r.Parse(rego)
+	if regoAst.Imports != nil {
+		fmt.Println(regoAst.Imports)
+		log.Fatal("Error: Libraries importing other packages is not supported")
 	}
-
-	for i := range regoAst.Imports {
-		libs = append(libs, strings.Trim(fmt.Sprintf("%v",regoAst.Imports[i]), "import data."))
-	}
-
-	name := strings.Trim(fmt.Sprintf("%v", regoAst.Package.Path), "data.")
-	return name, libs, nil
+	return r.GetPackageName(regoAst)
 }
 
-func Exists(name string) bool {
-	if _, err := os.Stat(name); err != nil {
-			if os.IsNotExist(err) {
-					return false
+func GetRegoFiles(path string) []string {
+	regoFileExt := ".rego"
+	regoTestFileSuffix := "_test"
+	files := []string{}
+	err := filepath.Walk(path,
+    func(path string, f os.FileInfo, err error) error {
+    if err != nil {
+        return err
+		}
+		if filepath.Ext(path) == regoFileExt {
+			if !strings.Contains(f.Name(), regoTestFileSuffix) {
+				files = append(files, path)
+			} else {
+				fmt.Println("Ignoring test file:", f.Name())
 			}
+		}
+    return nil
+	})
+	if err != nil {
+			log.Fatal(err)
 	}
-	return true
+	return files
+}
+
+func IsDirectory(path string) bool {
+	fileInfo, err := os.Stat(path)
+	if err != nil{
+		log.Fatal(err)
+	}
+	return fileInfo.IsDir()
 }
