@@ -13,8 +13,7 @@ import (
 
 	"github.com/open-policy-agent/frameworks/constraint/pkg/apis/templates/v1beta1"
 	"github.com/spf13/cobra"
-	r "github.com/xUnholy/konstraint/internal/rego"
-	"github.com/xUnholy/konstraint/internal/template"
+	r "github.com/xUnholy/konstraint/pkg/rego"
 )
 
 var (
@@ -66,7 +65,7 @@ func templateCmd(cmd *cobra.Command, args []string) {
 				fLibs = append(fLibs, val)
 			}
 		}
-		WriteFile(policyFiles[i], template.ConstraintTemplate(name, fLibs, rego))
+		WriteFile(policyFiles[i], t.ConstraintTemplate(name, fLibs, rego))
 	}
 }
 
