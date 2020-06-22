@@ -1,12 +1,17 @@
 name: build
 
-on:
-  push:
-    paths:
-      - '.github/workflows/build.yml'
-      - '!*.md'
+on: [push]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: golangci-lint
+        uses: reviewdog/action-golangci-lint@v1
+
   docker:
     runs-on: ubuntu-latest
     steps:
