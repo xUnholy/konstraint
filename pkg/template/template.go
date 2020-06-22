@@ -5,9 +5,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func ConstraintTemplate(name string, libs []string, rego string) v1beta1.ConstraintTemplate {
+func ConstraintTemplate(name string, libs []string, rego string) *v1beta1.ConstraintTemplate {
 	target := "admission.k8s.gatekeeper.sh"
-	return v1beta1.ConstraintTemplate{
+	return &v1beta1.ConstraintTemplate{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "templates.gatekeeper.sh/v1beta1",
 			Kind:       "ConstraintTemplate",

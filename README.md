@@ -12,3 +12,29 @@
 ## Intro
 
 Konstraint is a tool to auto generate Kubernetes Gatekeeper `constrainttemplate` resources by parsing the Rego files directly.
+
+## Installation
+
+Install `konstraint` using your preferred method.
+
+```bash
+go get github.com/xUnholy/konstraint
+```
+
+## Usage
+
+Use the CLI to generate Gatekeeper `constrainttemplate` resources:
+
+```bash
+konstraint template -p example/ -l example/libs -o yaml
+```
+
+Alternatively run the CLI using a Docker image for CI/CD:
+
+```bash
+docker run --rm --workdir /tmp/workspace \
+  -v "$(pwd)":/tmp/workspace \
+  xunholy/konstraint:latest \
+  template -p example -l example/libs \
+  -o yaml
+```

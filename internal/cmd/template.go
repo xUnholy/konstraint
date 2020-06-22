@@ -14,6 +14,7 @@ import (
 	"github.com/open-policy-agent/frameworks/constraint/pkg/apis/templates/v1beta1"
 	"github.com/spf13/cobra"
 	r "github.com/xUnholy/konstraint/pkg/rego"
+	t "github.com/xUnholy/konstraint/pkg/template"
 )
 
 var (
