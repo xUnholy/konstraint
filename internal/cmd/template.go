@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	"github.com/ghodss/yaml"
 
 	"github.com/open-policy-agent/frameworks/constraint/pkg/apis/templates/v1beta1"
 	"github.com/spf13/cobra"
@@ -77,17 +77,17 @@ func ParseRegoPolicy(rego string) (string, []string) {
 	return name, libs
 }
 
-func WriteFile(path string, out v1beta1.ConstraintTemplate) {
+func WriteFile(path string, out *v1beta1.ConstraintTemplate) {
 	var err error
 	var file []byte
 	output := strings.ToLower(outputType)
 	if output == "yaml" {
-		file, err = yaml.Marshal(out)
+		file, err = yaml.Marshal(&out)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else if output == "json" {
-		file, err = json.MarshalIndent(out, "", "	")
+		file, err = json.MarshalIndent(&out, "", "	")
 		if err != nil {
 			log.Fatal(err)
 		}
