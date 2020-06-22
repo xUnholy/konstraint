@@ -16,7 +16,6 @@ RUN export GOOS=$(echo ${TARGETPLATFORM} | cut -d / -f1) && \
   GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3); export GOARM=${GOARM:1} && \
   go build .
 
-
 FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /
