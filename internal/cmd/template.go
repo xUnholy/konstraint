@@ -4,22 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"gopkg.in/yaml.v2"
 	"log"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/open-policy-agent/frameworks/constraint/pkg/apis/templates/v1beta1"
 	"github.com/spf13/cobra"
-	"github.com/xUnholy/konstraint/internal/template"
 	r "github.com/xUnholy/konstraint/internal/rego"
+	"github.com/xUnholy/konstraint/internal/template"
 )
 
 var (
 	policyFilePath = "policy"
-	libFilePath = "libs"
-	outputType = "json"
+	libFilePath    = "libs"
+	outputType     = "json"
 )
 
 func TemplateCli() *cobra.Command {
@@ -80,12 +81,12 @@ func WriteFile(path string, out v1beta1.ConstraintTemplate) {
 	var err error
 	var file []byte
 	output := strings.ToLower(outputType)
-	if (output == "yaml") {
+	if output == "yaml" {
 		file, err = yaml.Marshal(out)
 		if err != nil {
 			log.Fatal(err)
 		}
-	} else if (output == "json") {
+	} else if output == "json" {
 		file, err = json.MarshalIndent(out, "", "	")
 		if err != nil {
 			log.Fatal(err)
@@ -125,28 +126,28 @@ func GetRegoFiles(path string) []string {
 	regoTestFileSuffix := "_test"
 	files := []string{}
 	err := filepath.Walk(path,
-    func(path string, f os.FileInfo, err error) error {
-    if err != nil {
-        return err
-		}
-		if filepath.Ext(path) == regoFileExt {
-			if !strings.Contains(f.Name(), regoTestFileSuffix) {
-				files = append(files, path)
-			} else {
-				fmt.Println("Ignoring test file:", f.Name())
+		func(path string, f os.FileInfo, err error) error {
+			if err != nil {
+				return err
 			}
-		}
-    return nil
-	})
+			if filepath.Ext(path) == regoFileExt {
+				if !strings.Contains(f.Name(), regoTestFileSuffix) {
+					files = append(files, path)
+				} else {
+					fmt.Println("Ignoring test file:", f.Name())
+				}
+			}
+			return nil
+		})
 	if err != nil {
-			log.Fatal(err)
+		log.Fatal(err)
 	}
 	return files
 }
 
 func IsDirectory(path string) bool {
 	fileInfo, err := os.Stat(path)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 	return fileInfo.IsDir()
